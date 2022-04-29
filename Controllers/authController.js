@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 
 const User = require("../models/UserModel");
-// const Plan = require("../models/PlanModel");
+const Plan = require("../models/PlanModel");
 
 const signInToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -10,10 +10,6 @@ const signInToken = (id) =>
 
 exports.signup = async (req, res) => {
   const data = req.body;
-
-  //   const plan = await Plan.find();
-
-  //   console.log(plan);
 
   const isUserexist = await User.find({ email: data.email });
 
@@ -26,8 +22,6 @@ exports.signup = async (req, res) => {
         password: data.password,
       });
 
-      //   const token = signInToken(newUser._id);
-      //   console.log(token);
       res.status(200).json({
         status: "success",
         message: "User Registered successfully",
@@ -52,7 +46,7 @@ exports.login = async (req, res) => {
 
   try {
     if (!email || !password) {
-      return res.status(401).json({
+      return res.status(400).json({
         message: "Enter email and password",
       });
     }
@@ -71,6 +65,53 @@ exports.login = async (req, res) => {
       status: "success",
       token,
     });
+  } catch (err) {
+    res.status(400).json({
+      message: "Login Failed",
+    });
+  }
+};
+
+exports.getUser = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader.split(" ")[1];
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const userId = decoded.id;
+
+  try {
+    const user = await User.findOne({ _id: userId });
+    res.status(200).json({
+      status: "Success",
+      user,
+    });
+  } catch (err) {
+    res.status(400).json({
+      message: "Login Failed",
+    });
+  }
+};
+
+exports.updatePlan = async (req, res) => {
+  const data = req.body;
+  const authHeader = req.headers.authorization;
+  const token = authHeader.split(" ")[1];
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const userId = decoded.id;
+
+  try {
+    const updatingPlan = await Plan.findOne({ name: data.plan });
+    const user = await User.findOne({ _id: userId });
+    const currentPlan = await Plan.findOne({ name: user.currentPlan });
+    if (updatingPlan.priority === currentPlan.priority + 1) {
+      const updatedPlan = await User.updateOne(
+        { _id: userId },
+        { $set: { currentPlan: data.plan } }
+      );
+      res.status(200).json({
+        status: "Success",
+        message: `Plan upgraded to ${data.plan}`,
+      });
+    }
   } catch (err) {
     res.status(400).json({
       message: "Login Failed",
